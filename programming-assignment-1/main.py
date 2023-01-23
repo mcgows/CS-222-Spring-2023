@@ -79,7 +79,7 @@ class CPU:
         return
 
     def beq(self, rs1, rs2, immed) -> None:
-        if (rs1 == rs2):
+        if (self.regs[rs1] == self.regs[rs2]):
             self.next_pc = self.pc + immed
         return
 
@@ -90,12 +90,12 @@ class CPU:
         return
 
     def lw(self, rd, rs1, immed) -> None:
-        eff_address = immed + rs1
+        eff_address = immed + self.regs[rs1]
         self.regs[rd] = self.mem[eff_address]
         return
 
     def sw(self, rs1, rs2, immed) -> None:
-        eff_address = immed + rs2
+        eff_address = immed + self.regs[rs2]
         self.mem[eff_address] = self.regs[rs1]
         return
 
@@ -110,7 +110,7 @@ def validate_run(memory, regs):
         print(f"R{idx}={elm}", end=", ")
     print("")
 
-    ADDRESS_TO_CHECK = 18
+    ADDRESS_TO_CHECK = 20
     print(f"value at address {ADDRESS_TO_CHECK}: {memory[ADDRESS_TO_CHECK]}")
 
 
