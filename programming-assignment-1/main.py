@@ -1,3 +1,9 @@
+"""
+@Author: Jack McGowan
+@Date: 01/23/2023
+"""
+
+
 class Instruction:
     opcode = int()
     Rd = int()
