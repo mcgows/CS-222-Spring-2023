@@ -2,6 +2,7 @@
 @Author: Jack McGowan
 @Date: 01/23/2023
 """
+import unittest
 
 
 class Instruction:
@@ -12,7 +13,7 @@ class Instruction:
     immed = int()
 
 
-class CPU:
+class Cpu:
     MEM_SIZE = 65536
     NUM_REGISTERS = 16
 
@@ -28,17 +29,19 @@ class CPU:
 
     def decode(self, instruction: int) -> Instruction:
         # We can assume the instruction to be 32bits long
-        MAX_1_BYTE = 15
-        MAX_4_BYTE = 65_535
+
+        # No Magic Numbers
+        MAX_4_BIT = 15         # 2 ** 4 - 1
+        MAX_16_BIT = 65_535     # 2 ** 16 - 1
 
         # The decoded instruction object
         parsed = Instruction()
 
-        parsed.opcode = (instruction >> 28) & MAX_1_BYTE
-        parsed.Rd = (instruction >> 24) & MAX_1_BYTE
-        parsed.Rs1 = (instruction >> 20) & MAX_1_BYTE
-        parsed.Rs2 = (instruction >> 16) & MAX_1_BYTE
-        parsed.immed = (instruction) & MAX_4_BYTE
+        parsed.opcode = (instruction >> 28) & MAX_4_BIT
+        parsed.Rd = (instruction >> 24) & MAX_4_BIT
+        parsed.Rs1 = (instruction >> 20) & MAX_4_BIT
+        parsed.Rs2 = (instruction >> 16) & MAX_4_BIT
+        parsed.immed = (instruction) & MAX_16_BIT
 
         return parsed
 
@@ -104,17 +107,9 @@ class CPU:
         # Terminate
         pass
 
-
-def validate_run(memory, regs):
-    for idx, elm in enumerate(regs):
-        print(f"R{idx}={elm}", end=", ")
-    print("")
-
-    ADDRESS_TO_CHECK = 20
-    print(f"value at address {ADDRESS_TO_CHECK}: {memory[ADDRESS_TO_CHECK]}")
-
-
-def main():
+class TestCpuProgram(unittest.TestCase):
+    MAX_16_BIT = 65536
+    
     NOOP = 0
     ADD = 1
     ADDI = 2
@@ -124,44 +119,56 @@ def main():
     SW = 6
     RETURN = 7
 
-    cpu = CPU()
+    def get_instructions(self):
+        instructions = []
+        instructions.append((self.NOOP << 28))
+        instructions.append((self.ADDI << 28) + (1 << 24) + (0 << 20) + 1)
+        instructions.append((self.ADDI << 28) + (2 << 24) + (0 << 20) + 2)
+        instructions.append((self.ADD << 28) + (3 << 24) + (1 << 20) + (1 << 16))
+        instructions.append((self.ADD << 28) + (4 << 24) + (2 << 20) + (2 << 16))
+        instructions.append((self.BEQ << 28) + (3 << 20) + (4 << 16) + 3)
+        instructions.append((self.ADDI << 28) + (8 << 24) + (0 << 20) + 10)
+        instructions.append((self.JAL << 28) + (0 << 24) + 2)
+        instructions.append((self.ADDI << 28) + (8 << 24) + (0 << 20) + 1000)
+        instructions.append((self.SW << 28) + (2 << 20) + (8 << 16) + 10)
+        instructions.append((self.LW << 28) + (5 << 24) + (8 << 20) + 10)
+        instructions.append((self.RETURN << 28))
 
-    i0 = (NOOP << 28)
-    i1 = (ADDI << 28) + (1 << 24) + (0 << 20) + 1
-    i2 = (ADDI << 28) + (2 << 24) + (0 << 20) + 2
-    i3 = (ADD << 28) + (3 << 24) + (1 << 20) + (1 << 16)
-    i4 = (ADD << 28) + (4 << 24) + (2 << 20) + (2 << 16)
-    i5 = (BEQ << 28) + (3 << 20) + (4 << 16) + 3
-    i6 = (ADDI << 28) + (8 << 24) + (0 << 20) + 10
-    i7 = (JAL << 28) + (0 << 24) + 2
-    i8 = (ADDI << 28) + (8 << 24) + (0 << 20) + 1000
-    i9 = (SW << 28) + (2 << 20) + (8 << 16) + 10
-    i10 = (LW << 28) + (5 << 24) + (8 << 20) + 10
-    i11 = (RETURN << 28)
-
-    cpu.mem[100] = i0
-    cpu.mem[101] = i1
-    cpu.mem[102] = i2
-    cpu.mem[103] = i3
-    cpu.mem[104] = i4
-    cpu.mem[105] = i5
-    cpu.mem[106] = i6
-    cpu.mem[107] = i7
-    cpu.mem[108] = i8
-    cpu.mem[109] = i9
-    cpu.mem[110] = i10
-    cpu.mem[111] = i11
-
-    cpu.pc = 100
-
-    while True:
-        instruction = cpu.fetch()
-        instruction = cpu.decode(instruction)
-        cpu.exec(instruction)
-        if instruction.opcode == RETURN:
-            break
-
-    validate_run(cpu.mem, cpu.regs)
+        return instructions
 
 
-main()
+    def load_validation_data(self):
+        valid_regs = [108,1,2,2,4,2,0,0,10,0,0,0,0,0,0,0]
+        
+        valid_memory = [int()] * self.MAX_16_BIT
+        valid_memory[20] = 2
+
+        instructions = self.get_instructions()
+        for idx, elm in enumerate(range(100,112)):
+            valid_memory[elm] = instructions[idx]
+
+        return valid_regs, valid_memory
+
+    def test_correctness(self):
+        VALID_REGS, VALID_MEMORY = self.load_validation_data()
+
+        cpu = Cpu()
+
+        instructions = self.get_instructions()
+        for idx, elm in enumerate(range(100,112)):
+            cpu.mem[elm] = instructions[idx]
+        
+        cpu.pc = 100
+
+        while True:
+            instruction = cpu.fetch()
+            instruction = cpu.decode(instruction)
+            cpu.exec(instruction)
+            if instruction.opcode == self.RETURN:
+                break
+
+        self.assertEqual(cpu.regs, VALID_REGS)
+        self.assertEqual(cpu.mem, VALID_MEMORY)
+
+if __name__ == '__main__':
+    unittest.main()
