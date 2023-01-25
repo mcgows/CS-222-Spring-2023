@@ -46,6 +46,8 @@ class Cpu:
         return parsed
 
     def exec(self, i: Instruction) -> None:
+
+        # if-elif was used in favor of match-case for python3 version compatibility
         op = i.opcode
         if op == 0:
             self.noop()
@@ -107,9 +109,10 @@ class Cpu:
         # Terminate
         pass
 
+
 class TestCpuProgram(unittest.TestCase):
     MAX_16_BIT = 65536
-    
+
     NOOP = 0
     ADD = 1
     ADDI = 2
@@ -124,8 +127,10 @@ class TestCpuProgram(unittest.TestCase):
         instructions.append((self.NOOP << 28))
         instructions.append((self.ADDI << 28) + (1 << 24) + (0 << 20) + 1)
         instructions.append((self.ADDI << 28) + (2 << 24) + (0 << 20) + 2)
-        instructions.append((self.ADD << 28) + (3 << 24) + (1 << 20) + (1 << 16))
-        instructions.append((self.ADD << 28) + (4 << 24) + (2 << 20) + (2 << 16))
+        instructions.append((self.ADD << 28) + (3 << 24) +
+                            (1 << 20) + (1 << 16))
+        instructions.append((self.ADD << 28) + (4 << 24) +
+                            (2 << 20) + (2 << 16))
         instructions.append((self.BEQ << 28) + (3 << 20) + (4 << 16) + 3)
         instructions.append((self.ADDI << 28) + (8 << 24) + (0 << 20) + 10)
         instructions.append((self.JAL << 28) + (0 << 24) + 2)
@@ -136,15 +141,14 @@ class TestCpuProgram(unittest.TestCase):
 
         return instructions
 
-
     def load_validation_data(self):
-        valid_regs = [108,1,2,2,4,2,0,0,10,0,0,0,0,0,0,0]
-        
+        valid_regs = [108, 1, 2, 2, 4, 2, 0, 0, 10, 0, 0, 0, 0, 0, 0, 0]
+
         valid_memory = [int()] * self.MAX_16_BIT
         valid_memory[20] = 2
 
         instructions = self.get_instructions()
-        for idx, elm in enumerate(range(100,112)):
+        for idx, elm in enumerate(range(100, 112)):
             valid_memory[elm] = instructions[idx]
 
         return valid_regs, valid_memory
@@ -155,9 +159,9 @@ class TestCpuProgram(unittest.TestCase):
         cpu = Cpu()
 
         instructions = self.get_instructions()
-        for idx, elm in enumerate(range(100,112)):
+        for idx, elm in enumerate(range(100, 112)):
             cpu.mem[elm] = instructions[idx]
-        
+
         cpu.pc = 100
 
         while True:
@@ -169,6 +173,7 @@ class TestCpuProgram(unittest.TestCase):
 
         self.assertEqual(cpu.regs, VALID_REGS)
         self.assertEqual(cpu.mem, VALID_MEMORY)
+
 
 if __name__ == '__main__':
     unittest.main()
