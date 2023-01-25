@@ -22,6 +22,12 @@ class Cpu:
     mem = [int()] * MEM_SIZE
     regs = [int()] * NUM_REGISTERS
 
+    def __init__(self):
+        self.pc = int()
+        self.next_pc = int()
+        self.mem = [int()] * self.MEM_SIZE
+        self.regs = [int()] * self.NUM_REGISTERS
+
     def fetch(self) -> int:
         instruction = self.mem[self.pc]
         self.next_pc = self.pc + 1
@@ -71,38 +77,32 @@ class Cpu:
         self.pc = self.next_pc
 
     def noop(self) -> None:
-        return
+        pass
 
     def add(self, rd, rs1, rs2) -> None:
         alu_result = self.regs[rs1] + self.regs[rs2]
         self.regs[rd] = alu_result
-        return
 
     def addi(self, rd, rs1, immed) -> None:
         alu_result = self.regs[rs1] + immed
         self.regs[rd] = alu_result
-        return
 
     def beq(self, rs1, rs2, immed) -> None:
         if (self.regs[rs1] == self.regs[rs2]):
             self.next_pc = self.pc + immed
-        return
 
     def jal(self, rd, immed) -> None:
         alu_result = self.pc + 1
         self.regs[rd] = alu_result
         self.next_pc = self.pc + immed
-        return
 
     def lw(self, rd, rs1, immed) -> None:
         eff_address = immed + self.regs[rs1]
         self.regs[rd] = self.mem[eff_address]
-        return
 
     def sw(self, rs1, rs2, immed) -> None:
         eff_address = immed + self.regs[rs2]
         self.mem[eff_address] = self.regs[rs1]
-        return
 
     # return function, named this way to avoid conflict with built-in return
     def rtrn(self) -> None:
@@ -122,7 +122,7 @@ class TestCpuProgram(unittest.TestCase):
     SW = 6
     RETURN = 7
 
-    def get_instructions(self):
+    def get_instructions_one(self):
         instructions = []
         instructions.append((self.NOOP << 28))
         instructions.append((self.ADDI << 28) + (1 << 24) + (0 << 20) + 1)
@@ -141,25 +141,78 @@ class TestCpuProgram(unittest.TestCase):
 
         return instructions
 
-    def load_validation_data(self):
+    def load_validation_data_one(self):
         valid_regs = [108, 1, 2, 2, 4, 2, 0, 0, 10, 0, 0, 0, 0, 0, 0, 0]
 
         valid_memory = [int()] * self.MAX_16_BIT
         valid_memory[20] = 2
 
-        instructions = self.get_instructions()
+        instructions = self.get_instructions_one()
         for idx, elm in enumerate(range(100, 112)):
             valid_memory[elm] = instructions[idx]
 
         return valid_regs, valid_memory
 
-    def test_correctness(self):
-        VALID_REGS, VALID_MEMORY = self.load_validation_data()
+    def test_one(self):
+        VALID_REGS, VALID_MEMORY = self.load_validation_data_one()
 
         cpu = Cpu()
 
-        instructions = self.get_instructions()
-        for idx, elm in enumerate(range(100, 112)):
+        instructions = self.get_instructions_one()
+        memory_start = 100
+        for idx, elm in enumerate(range(memory_start, memory_start + len(instructions))):
+            cpu.mem[elm] = instructions[idx]
+
+        cpu.pc = 100
+
+        while True:
+            instruction = cpu.fetch()
+            instruction = cpu.decode(instruction)
+            cpu.exec(instruction)
+            if instruction.opcode == self.RETURN:
+                break
+
+        self.assertEqual(cpu.regs, VALID_REGS)
+        self.assertEqual(cpu.mem, VALID_MEMORY)
+
+    def get_instructions_two(self):
+        instructions = []
+        instructions.append((self.ADDI << 28) + (1 << 24) + (0 << 20) + 1)
+        instructions.append((self.ADDI << 28) + (2 << 24) + (0 << 20) + 2)
+        instructions.append((self.ADD << 28) + (3 << 24) +
+                            (2 << 20) + (1 << 16))
+        instructions.append((self.ADD << 28) + (4 << 24) +
+                            (1 << 20) + (2 << 16))
+        instructions.append((self.BEQ << 28) + (3 << 20) + (4 << 16) + 3)
+        instructions.append((self.ADDI << 28) + (8 << 24) + (0 << 20) + 10)
+        instructions.append((self.JAL << 28) + (0 << 24) + 2)
+        instructions.append((self.ADDI << 28) + (8 << 24) + (0 << 20) + 1000)
+        instructions.append((self.SW << 28) + (2 << 20) + (8 << 16) + 10)
+        instructions.append((self.LW << 28) + (5 << 24) + (8 << 20) + 10)
+        instructions.append((self.RETURN << 28))
+
+        return instructions
+
+    def load_validation_data_two(self):
+        valid_regs = [0, 1, 2, 3, 3, 2, 0, 0, 1000, 0, 0, 0, 0, 0, 0, 0]
+
+        valid_memory = [int()] * self.MAX_16_BIT
+        valid_memory[1010] = 2
+
+        instructions = self.get_instructions_two()
+        for idx, elm in enumerate(range(100, 111)):
+            valid_memory[elm] = instructions[idx]
+
+        return valid_regs, valid_memory
+
+    def test_two(self):
+        VALID_REGS, VALID_MEMORY = self.load_validation_data_two()
+
+        cpu = Cpu()
+
+        instructions = self.get_instructions_two()
+        memory_start = 100
+        for idx, elm in enumerate(range(memory_start, memory_start + len(instructions))):
             cpu.mem[elm] = instructions[idx]
 
         cpu.pc = 100
