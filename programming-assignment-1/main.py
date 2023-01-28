@@ -30,7 +30,6 @@ class Cpu:
 
     def fetch(self) -> int:
         instruction = self.mem[self.pc]
-        self.next_pc = self.pc + 1
         return instruction
 
     def decode(self, instruction: int) -> Instruction:
@@ -75,6 +74,7 @@ class Cpu:
             self.noop()
 
         self.pc = self.next_pc
+        self.next_pc = self.pc + 1
 
     def noop(self) -> None:
         pass
