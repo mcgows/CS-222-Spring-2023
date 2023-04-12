@@ -5,7 +5,11 @@ BRANCH_BASE = 16
 
 class BHT:
     def __init__(self, predictor_size_bits, memory_size_bits):
-        self.size = int(memory_size_bits / predictor_size_bits)
+        self.size = (
+            memory_size_bits
+            if predictor_size_bits == 0
+            else int(memory_size_bits / predictor_size_bits)
+        )
         self.arr = [0] * self.size
 
     def addr_to_int(self, branch_addr):
@@ -32,9 +36,8 @@ def read_trace(fileName: str) -> list:
 
 
 def static_bp(branches: list) -> dict:
-    branches_checked = 0
-    branches_correct = 0
-    prediction = 0
+    branches_checked, branches_correct, prediction = 0, 0, 0
+
     for branch in branches:
         branches_checked += 1
         if int(branch["result"]) == prediction:
@@ -43,13 +46,12 @@ def static_bp(branches: list) -> dict:
     return {
         "checked": branches_checked,
         "correct": branches_correct,
-        "percentage": (branches_correct / branches_checked),
+        "percentage": round(branches_correct / branches_checked * 100.0, 2),
     }
 
 
 def one_bit_bp(branches: list, bht: BHT) -> dict:
-    branches_checked = 0
-    branches_correct = 0
+    branches_checked, branches_correct = 0, 0
     for branch in branches:
         prediction = bht.read_from_branch(branch["branch"])
         branches_checked += 1
@@ -65,28 +67,32 @@ def one_bit_bp(branches: list, bht: BHT) -> dict:
     }
 
 
+def saturating_counter(branch, max_saturated_value, bht):
+    prediction = bht.read_from_branch(branch["branch"])
+
+    predict_taken = False
+    if prediction >= ((max_saturated_value + 1) / 2):
+        predict_taken = True
+
+    if int(branch["result"]) == 1:
+        bht.write_to_arr(branch["branch"], min(prediction + 1, max_saturated_value))
+        if predict_taken:
+            return True
+
+    else:
+        bht.write_to_arr(branch["branch"], max(prediction - 1, 0))
+        if not predict_taken:
+            return True
+
+
 def two_bit_bp(branches: list, bht: BHT) -> dict:
-    branches_checked = 0
-    branches_correct = 0
-    taken = [2, 3]
+    TWO_BIT_MAX_SATURATED = 3
+    branches_checked, branches_correct = 0, 0
 
     for branch in branches:
-        prediction = bht.read_from_branch(branch["branch"])
         branches_checked += 1
-
-        predict_taken = False
-        if prediction in taken:
-            predict_taken = True
-
-        if int(branch["result"]) == 1:
-            if predict_taken:
-                branches_correct += 1
-            bht.write_to_arr(branch["branch"], min(prediction + 1, 3))
-
-        else:
-            if not predict_taken:
-                branches_correct += 1
-            bht.write_to_arr(branch["branch"], max(prediction - 1, 0))
+        if saturating_counter(branch, TWO_BIT_MAX_SATURATED, bht):
+            branches_correct += 1
 
     return {
         "checked": branches_checked,
@@ -96,27 +102,13 @@ def two_bit_bp(branches: list, bht: BHT) -> dict:
 
 
 def three_bit_bp(branches: list, bht: BHT) -> dict:
-    branches_checked = 0
-    branches_correct = 0
-    taken = [4, 5, 6, 7]
+    THREE_BIT_MAX_SATURATED = 7
+    branches_checked, branches_correct = 0, 0
 
     for branch in branches:
-        prediction = bht.read_from_branch(branch["branch"])
         branches_checked += 1
-
-        predict_taken = False
-        if prediction in taken:
-            predict_taken = True
-
-        if int(branch["result"]) == 1:
-            if predict_taken:
-                branches_correct += 1
-            bht.write_to_arr(branch["branch"], min(prediction + 1, 7))
-
-        else:
-            if not predict_taken:
-                branches_correct += 1
-            bht.write_to_arr(branch["branch"], max(prediction - 1, 0))
+        if saturating_counter(branch, THREE_BIT_MAX_SATURATED, bht):
+            branches_correct += 1
 
     return {
         "checked": branches_checked,
@@ -130,7 +122,8 @@ def main():
 
     if len(cmd_args) != 4:
         print(
-            "Please call with args for trace file name, number of bits for predictor, and size of BHT"
+            """Please call with args for trace file name, 
+            number of bits for predictor, and size of BHT"""
         )
         return
 
@@ -142,7 +135,7 @@ def main():
     bht = BHT(predictor_size, memory_size)
 
     if predictor_size == 0:
-        print(f"=== STATIC ===")
+        print("=== STATIC ===")
         static = static_bp(branches)
         print(static)
 
