@@ -1,0 +1,4 @@
+Relative Error [ GPU vs. CPU] rounded to ten thousandths of a percent : 0.0224%
+GPU Execution time [ Memory Operations Counted ] : 16.516096 ms
+GPU Execution time [ No Memory Operations ] : 2.289600 ms
+CPU Execution time : 42.6659 ms
