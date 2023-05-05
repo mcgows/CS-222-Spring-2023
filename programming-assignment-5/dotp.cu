@@ -1,7 +1,6 @@
 
 #include "cuda_runtime.h"
 #include <stdio.h>
-#include <cmath>
 
 __global__ void dotp(float* u, float* v, float* partialSum);
 
