@@ -1,0 +1,9 @@
+there are 1 device(s)
+name is NVIDIA GeForce RTX 3080
+major.minor is 8.6
+multiProcessorCount is 68
+warpSize is 32
+maxThreadsPerBlock is 1024
+maxThreadsDim is (1024, 1024, 64)
+maxGridSize is (2147483647, 65535, 65535)
+device overlap is enabled
